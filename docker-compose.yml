@@ -1,0 +1,26 @@
+version: "3.9"
+
+services:
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: n8n
+    ports:
+      - "5678:5678"       # Local access port
+    environment:
+      - N8N_HOST=0.0.0.0
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - DB_TYPE=mssql
+      - DB_MSSQL_HOST=${DB_MSSQL_HOST}
+      - DB_MSSQL_PORT=${DB_MSSQL_PORT}
+      - DB_MSSQL_DATABASE=${DB_MSSQL_DATABASE}
+      - DB_MSSQL_USER=${DB_MSSQL_USER}
+      - DB_MSSQL_PASSWORD=${DB_MSSQL_PASSWORD}
+      - N8N_ONBOARDING_FLOW_DISABLED=false
+      - N8N_USER_MANAGEMENT_DISABLED=false
+      - N8N_DIAGNOSTICS_ENABLED=false
+      - N8N_PERSONALIZATION_ENABLED=false
+    volumes:
+      - ./n8n_data:/home/node/.n8n
+      - ./workflows:/home/node/.n8n/workflows
+    restart: unless-stopped

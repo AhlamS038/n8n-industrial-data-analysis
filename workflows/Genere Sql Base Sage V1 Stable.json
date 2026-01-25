@@ -1,0 +1,312 @@
+{
+  "name": "Genere Sql Base Sage V1 Stable",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "\nlet query =$input.first().json.safeSQL;\n\nquery = query.replace(/^```sql\\s*/, '').replace(/\\s*```$/, '').trim();\n\nreturn [{ json: { sql: query } }];\n\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        544
+      ],
+      "id": "12f7d8da-b7a6-4f35-8304-0e4b0c7f1864",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "jsCode": "const sqlResults = $input.all();\nconst jsonResults = sqlResults.map(item => item.json);\nconst preview = jsonResults;\n\nconst sqlQuery =  $('Code2').first().json.safeSQL|| 'Requête non trouvée';\nconst resultJson = JSON.stringify(jsonResults, null, 2);\nconst previewJson = JSON.stringify(preview, null, 2);\nconst userPrompt =  $('When chat message received').first().json.chatInput|| 'Prompt non fourni';\n\nconst prompt = `\n **Rôle :** Tu es un expert en SQL et en analyse de données métier. Ton objectif est d’expliquer clairement à un utilisateur non technique ce que révèle une requête SQL et ses résultats.\n\n---\n\n##  1. Fonction de la requête\n> Explique ce que fait la requête SQL : sélection, agrégation, filtres, regroupements…\n> Utilise un langage simple, compréhensible par des profils non techniques.\n\n---\n\n##  2. Interprétation des résultats\n> Analyse ce que révèlent les résultats dans un contexte métier : ventes, remises, clients, stocks, etc.\n> - Si les résultats sont vides : dis-le explicitement.\n> - Si des valeurs se distinguent : mentionne-les (moyennes, extrêmes, etc.).\n> - Reste **factuel**, sans hypothèse non appuyée.\n\n---\n\n##  3. Aperçu des données \n\n\\`\\`\\`json\n${previewJson}\n\\`\\`\\`\n\n---\n\n##  4. Détails techniques\n\n**Requête SQL exécutée :**\n\n\\`\\`\\`sql\n${sqlQuery}\n\\`\\`\\`\n\n**Prompt utilisateur :**\n\\`\\`\\`text\n${userPrompt}\n\\`\\`\\`\n\n**Résultat complet (JSON) :**\n\\`\\`\\`json\n${jsonResults}\n\\`\\`\\`\n\n---\n\n##  Contraintes\n- Ne fais **aucune supposition** si les résultats sont vides.\n- Structure **toujours** selon les 4 sections (fonction, interprétation, aperçu, détails ).\n- Réponds **en français**, avec un **langage métier clair**, sans conclusion inutile.\n- Utilise **le format Markdown uniquement**.\n\n`;\n\nreturn [\n  {\n    json: {\n      prompt\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1232,
+        560
+      ],
+      "id": "4cf298f5-65b2-4afe-baad-71f6051fd00f",
+      "name": "Code1"
+    },
+    {
+      "parameters": {
+        "content": "enlever les quotes et headers ",
+        "width": 220
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        672,
+        512
+      ],
+      "id": "05fafca1-e238-4eea-9b71-340ea418a518",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "executer la requete et retourner les donnees (rows)\n"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        928,
+        272
+      ],
+      "id": "05563585-fde1-45c6-a1e9-31b2045e22fb",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -160,
+        352
+      ],
+      "id": "bc1dc7f7-d9ef-4850-868b-6a5f75531ffd",
+      "name": "When chat message received",
+      "webhookId": "aad561e2-525e-4708-8d5e-dfdb4f81b500"
+    },
+    {
+      "parameters": {
+        "content": "générer une nouvelle prompt "
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1152,
+        528
+      ],
+      "id": "14fd87e7-e5e0-4d2f-81c2-9da83186201e",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.prompt }}",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        1440,
+        320
+      ],
+      "id": "708f2787-238d-41b5-b164-4ab1ac47bbe7",
+      "name": "Basic LLM Chain1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1504,
+        480
+      ],
+      "id": "2c55fdb3-84ce-40e6-b480-c4bb6cc95875",
+      "name": "OpenRouter Chat Model1"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst query =$input.first().json.output;\nconst lowerQuery = query.toLowerCase();\n\nconst forbidden = [\"drop\", \"delete\", \"update\", \"insert\", \"alter\", \"exec\", \"truncate\", \"create\", \"grant\"];\n\nconst isUnsafe = forbidden.some(keyword => lowerQuery.includes(keyword));\n\nif (isUnsafe) {\n  throw new Error(\"Rejected unsafe SQL query.\");\n}\n\nreturn [{ json: { safeSQL: query } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        544
+      ],
+      "id": "cbb01a15-d1a5-4b69-8649-3b2e99cce735",
+      "name": "Code2"
+    },
+    {
+      "parameters": {
+        "content": "prevent sql injection\n",
+        "width": 220
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        432,
+        512
+      ],
+      "id": "7b2e001e-fbf9-4a27-96ed-c7976c9e62e2",
+      "name": "Sticky Note5"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Tu es un expert en bases de données SQL Server.\n\nTa tâche est de traduire la question suivante en une requête SQL Server strictement valide, en te basant uniquement sur le schéma ci-dessous.  \nRespecte la structure et la syntaxe propre à SQL Server.\n\n### Schéma :\nVueSage_DocumentsAchat\n[domaine] = <domaine, varchar(5),>\n      ,[typeDocument] = <typeDocument, varchar(23),>\n      ,[Souche] = <Souche, varchar(35),>\n      ,[NumDocument] = <NumDocument, varchar(13),>\n      ,[dateDocument] = <dateDocument, datetime,>\n      ,[NumBonLivraison] = <NumBonLivraison, varchar(13),>\n      ,[dateLivraison] = <dateLivraison, datetime,>\n      ,[dateBonLivraison] = <dateBonLivraison, datetime,>\n      ,[NumBonCommande] = <NumBonCommande, varchar(13),>\n      ,[dateCommande] = <dateCommande, datetime,>\n      ,[Nbonreception] = <Nbonreception, varchar(8),>\n      ,[NumPrepaLivraison] = <NumPrepaLivraison, varchar(13),>\n      ,[NumDevis] = <NumDevis, varchar(13),>\n      ,[dateDemande] = <dateDemande, datetime,>\n      ,[reference] = <reference, varchar(17),>\n      ,[codeTier] = <codeTier, varchar(17),>\n      ,[designationTier] = <designationTier, varchar(69),>\n      ,[codeArticle] = <codeArticle, varchar(19),>\n      ,[designationArticle] = <designationArticle, varchar(69),>\n      ,[quantite] = <quantite, numeric(24,6),>\n      ,[qteRestante] = <qteRestante, numeric(24,6),>\n      ,[qualite] = <qualite, varchar(32),>\n      ,[moule] = <moule, varchar(32),>\n      ,[frs_Origine] = <frs_Origine, varchar(1),>\n      ,[Origine] = <Origine, varchar(32),>\n      ,[prixTTC] = <prixTTC, numeric(24,6),>\n      ,[Remise] = <Remise, numeric(24,6),>\n      ,[PrixTTCNet] = <PrixTTCNet, numeric(24,6),>\n      ,[tauxTVA] = <tauxTVA, varchar(35),>\n      ,[CMUP] = <CMUP, numeric(24,6),>\n      ,[montantTTC] = <montantTTC, numeric(24,6),>\n      ,[service] = <service, varchar(35),>\n      ,[CodeAffaire] = <CodeAffaire, varchar(13),>\n      ,[Affaire] = <Affaire, varchar(35),>\n      ,[Observation] = <Observation, varchar(69),>\n      ,[Unite] = <Unite, varchar(21),>\n      ,[codeMagasin] = <codeMagasin, int,>\n      ,[Magasin] = <Magasin, varchar(35),>\n      ,[codeFamille] = <codeFamille, varchar(11),>\n      ,[famille] = <famille, varchar(69),>\n      ,[codeCatalogue] = <codeCatalogue, int,>\n      ,[Catalogue] = <Catalogue, varchar(35),>\n      ,[Cours de Change] = <Cours de Change, numeric(24,6),>\n      ,[Ville] = <Ville, int,>\n      ,[Pays] = <Pays, int,>\n      ,[LS_NoSerie] = <LS_NoSerie, varchar(31),>\n      ,[LS_Fabrication] = <LS_Fabrication, datetime,>\n      ,[cbMarq] = <cbMarq, int,>\n      ,[DL_Frais] = <DL_Frais, numeric(24,6),>\n      ,[ValideeExport] = <ValideeExport, varchar(1),>\n      ,[Validee01] = <Validee01, nvarchar(50),>\n      ,[Validee02] = <Validee02, nvarchar(50),>\n FROM [BaseFormationSage].[dbo].[VueSage_DocumentsVente]\n\nVueSage_DocumentsVente\n[domaine] = <domaine, varchar(5),>\n      ,[typeDocument] = <typeDocument, varchar(24),>\n      ,[Souche] = <Souche, varchar(35),>\n      ,[NumDocument] = <NumDocument, varchar(13),>\n      ,[dateDocument] = <dateDocument, datetime,>\n      ,[NumBonLivraison] = <NumBonLivraison, varchar(13),>\n      ,[dateLivraison] = <dateLivraison, datetime,>\n      ,[dateBonLivraison] = <dateBonLivraison, datetime,>\n      ,[NumBonCommande] = <NumBonCommande, varchar(13),>\n      ,[dateCommande] = <dateCommande, datetime,>\n      ,[Nbonreception] = <Nbonreception, varchar(8),>\n      ,[NumPrepaLivraison] = <NumPrepaLivraison, varchar(13),>\n      ,[NumDevis] = <NumDevis, varchar(13),>\n      ,[dateDemande] = <dateDemande, datetime,>\n      ,[reference] = <reference, varchar(17),>\n      ,[codeTier] = <codeTier, varchar(17),>\n      ,[designationTier] = <designationTier, varchar(69),>\n      ,[codeArticle] = <codeArticle, varchar(19),>\n      ,[designationArticle] = <designationArticle, varchar(69),>\n      ,[quantite] = <quantite, numeric(24,6),>\n      ,[qteRestante] = <qteRestante, numeric(24,6),>\n      ,[qualite] = <qualite, varchar(32),>\n      ,[moule] = <moule, varchar(32),>\n      ,[frs_Origine] = <frs_Origine, varchar(1),>\n      ,[Origine] = <Origine, varchar(32),>\n      ,[prixTTC] = <prixTTC, numeric(24,6),>\n      ,[Remise] = <Remise, numeric(24,6),>\n      ,[PrixTTCNet] = <PrixTTCNet, numeric(24,6),>\n      ,[PrixDevise] = <PrixDevise, numeric(24,6),>\n      ,[tauxTVA] = <tauxTVA, varchar(35),>\n      ,[CMUP] = <CMUP, numeric(24,6),>\n      ,[montantTTC] = <montantTTC, numeric(24,6),>\n      ,[service] = <service, varchar(35),>\n      ,[CodeAffaire] = <CodeAffaire, varchar(13),>\n      ,[Affaire] = <Affaire, varchar(35),>\n      ,[Observation] = <Observation, varchar(69),>\n      ,[Unite] = <Unite, varchar(21),>\n      ,[codeMagasin] = <codeMagasin, int,>\n      ,[Magasin] = <Magasin, varchar(35),>\n      ,[codeFamille] = <codeFamille, varchar(11),>\n      ,[famille] = <famille, varchar(69),>\n      ,[codeCatalogue] = <codeCatalogue, int,>\n      ,[Catalogue] = <Catalogue, varchar(35),>\n      ,[Cours de Change] = <Cours de Change, numeric(24,6),>\n      ,[Ville] = <Ville, int,>\n      ,[Pays] = <Pays, int,>\n      ,[LS_NoSerie] = <LS_NoSerie, varchar(31),>\n      ,[LS_Fabrication] = <LS_Fabrication, datetime,>\n      ,[PrixAchat] = <PrixAchat, numeric(24,6),>\n      ,[NumPieceAchat] = <NumPieceAchat, varchar(13),>\n      ,[cbMarq] = <cbMarq, int,>\n      ,[DL_Frais] = <DL_Frais, numeric(24,6),>\n      ,[FraisUnitaire] = <FraisUnitaire, numeric(38,6),>\n      ,[typeFacture] = <typeFacture, varchar(17),>\n      ,[export_incoterm] = <export_incoterm, int,>\n      ,[export_destination] = <export_destination, int,>\n      ,[ClientFinal] = <ClientFinal, varchar(35),>\n FROM [BaseFormationSage].[dbo].[VueSage_DocumentsVente]\n\n### Question :\n{{ $json.chatInput }}\n\n### Consignes strictes :\n- Réponds uniquement avec une requête SQL Server valide, **sans explication ni commentaire**.\n- Utilise uniquement les colonnes du schéma fourni.\n- Ne fais **aucune hypothèse** sur des colonnes non listées.\n- Formate proprement la requête (majuscules pour les mots-clés SQL).\n- Si la question est ambiguë, choisis une interprétation raisonnable mais **n’invente aucune donnée**.\n\nTa réponse doit contenir **uniquement** la requête SQL.\n",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        112,
+        352
+      ],
+      "id": "7a2d1f0e-9cb7-4fa7-9f8a-86e053ed14e2",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        80,
+        544
+      ],
+      "id": "47af2c35-bb99-4490-a9e6-21018c65a9c6",
+      "name": "OpenRouter Chat Model2"
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        208,
+        544
+      ],
+      "id": "701b9f87-658b-44b7-a33d-2e1f1fff36b7",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "{{ $json.sql }}"
+      },
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1.1,
+      "position": [
+        992,
+        320
+      ],
+      "id": "fa594cca-9800-4f95-bef1-004160a652c3",
+      "name": "Microsoft SQL",
+      "alwaysOutputData": true,
+      "credentials": {
+        "microsoftSql": {
+          "id": "AWstyxzbhUvUyxvz",
+          "name": "Microsoft SQL account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Microsoft SQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code1": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code2": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Code2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Microsoft SQL": {
+      "main": [
+        [
+          {
+            "node": "Code1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1c800d79-5e5f-4f00-8805-369aefead526",
+  "meta": {
+    "instanceId": "f9fd2de10ad9879584ede71b8a2ecc81e4d650e7923993faa39f50ffb91f1d74"
+  },
+  "id": "8Gp5OGHJhhXmPb4L",
+  "tags": []
+}
