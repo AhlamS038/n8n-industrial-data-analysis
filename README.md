@@ -14,6 +14,7 @@ The system integrates:
 This workflow demonstrates how **automation and AI** can simplify data access and make industrial data more actionable.
 
 ---
+![workflow description](images/workflow.png)
 
 ## Features
 
@@ -24,6 +25,8 @@ This workflow demonstrates how **automation and AI** can simplify data access an
 - Portable and reproducible using Docker
 
 ---
+![workflow demo](images/n8n.png)
+
 
 ## Prerequisites
 
